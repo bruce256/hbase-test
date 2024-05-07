@@ -7,16 +7,17 @@ import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.IntStream;
 
 
 public class HBaseDemo {
-
+	
 	private static Configuration conf       = null;
-	public static  String        tableName  = "table1";
+	public static  String        tableName  = "user";
 	private static TableName     TABLE_NAME = TableName.valueOf(Bytes.toBytes(tableName));
 	private static Connection    connection = null;
 	private static Table         table      = null;
-
+	
 	/**
 	 * 初始化配置
 	 */
@@ -24,12 +25,12 @@ public class HBaseDemo {
 		conf = HBaseConfiguration.create();
 		try {
 			connection = ConnectionFactory.createConnection(conf);
-			table = connection.getTable(TABLE_NAME);
+			table      = connection.getTable(TABLE_NAME);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
-
+	
 	/**
 	 * 查询表中所有行
 	 */
@@ -55,7 +56,7 @@ public class HBaseDemo {
 			e.printStackTrace();
 		}
 	}
-
+	
 	public void scanByRange() {
 		System.out.println("scanByRange");
 		try {
@@ -71,12 +72,12 @@ public class HBaseDemo {
 			e.printStackTrace();
 		}
 	}
-
+	
 	/**
 	 * 插入一行记录
 	 */
 	public void put(String row, String family, String qualifier, String value) {
-		System.out.println("put");
+		System.out.println("put " + row);
 		try {
 			Put put = new Put(Bytes.toBytes(row));
 			put.addColumn(Bytes.toBytes(family), Bytes.toBytes(qualifier), Bytes.toBytes(value));
@@ -85,7 +86,7 @@ public class HBaseDemo {
 			e.printStackTrace();
 		}
 	}
-
+	
 	public void get(String row) {
 		System.out.println("get");
 		Get get = new Get(Bytes.toBytes(row));
@@ -98,7 +99,7 @@ public class HBaseDemo {
 			e.printStackTrace();
 		}
 	}
-
+	
 	public void getFamily(String row) {
 		System.out.println("getFamily");
 		Get get = new Get(Bytes.toBytes(row));
@@ -111,7 +112,7 @@ public class HBaseDemo {
 			e.printStackTrace();
 		}
 	}
-
+	
 	public void delete(String row) {
 		System.out.println("delete");
 		Delete delete = new Delete(Bytes.toBytes(row));
@@ -121,16 +122,16 @@ public class HBaseDemo {
 			e.printStackTrace();
 		}
 	}
-
+	
 	private void printCell(Cell cell) {
-		System.out.println(new String(cell.getRow()) + '\t'
-								   + new String(cell.getFamily()) + '\t'
-								   + new String(cell.getQualifier()) + '\t'
-								   + new String(cell.getValue()));
+		System.out.println(new String(cell.getRowArray()) + '\t'
+								   + new String(cell.getFamilyArray()) + '\t'
+								   + new String(cell.getQualifierArray()) + '\t'
+								   + new String(cell.getValueArray()));
 	}
-
+	
 	public void addColumnFamily(String familyName) {
-		try {
+		/*try {
 			HBaseAdmin       admin      = new HBaseAdmin(conf);
 			HTableDescriptor descriptor = new HTableDescriptor(table.getTableDescriptor());
 			descriptor.addFamily(new HColumnDescriptor(familyName));
@@ -139,21 +140,25 @@ public class HBaseDemo {
 			admin.enableTable(TABLE_NAME);
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
+		}*/
 	}
-
+	
 	public static void main(String[] args) {
 		init();
 		HBaseDemo hBaseDemo = new HBaseDemo();
 		/*hBaseDemo.addColumnFamily("col2");*/
-		for (int i = 0; i < 20; i++) {
-			hBaseDemo.put("row" + i, "col3", "z", "ruzun");
-		}
-		hBaseDemo.get("row");
+/*		for (int i = 0; i < 1000000000; i++) {
+		
+		}*/
+		IntStream.range(0, 100000000).parallel().forEach(i -> {
+			hBaseDemo.put("row" + i, "info", "name", "tangwanting" + i);
+		});
+		System.out.println("数据写入结束");
+		/*hBaseDemo.get("row");
 		hBaseDemo.getFamily("row");
 		hBaseDemo.scan();
-		/*hBaseDemo.delete("rows1");*/
+		*//*hBaseDemo.delete("rows1");*//*
 		hBaseDemo.scan();
-		hBaseDemo.scanByRange();
+		hBaseDemo.scanByRange();*/
 	}
 }
