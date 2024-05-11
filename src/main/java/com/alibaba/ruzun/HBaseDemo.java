@@ -1,32 +1,59 @@
 package com.alibaba.ruzun;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.*;
-import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
+import static org.apache.hadoop.hbase.util.Bytes.toBytes;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 
+@Slf4j
 public class HBaseDemo {
 	
-	private static Configuration conf       = null;
-	public static  String        tableName  = "user";
-	private static TableName     TABLE_NAME = TableName.valueOf(Bytes.toBytes(tableName));
-	private static Connection    connection = null;
-	private static Table         table      = null;
+	private Configuration conf       = null;
+	public  String        tableName  = "user";
+	private TableName     TABLE_NAME = TableName.valueOf(toBytes(tableName));
+	private Connection    connection = null;
+	private Table         table      = null;
+	
+	private int                coreSize = Runtime.getRuntime().availableProcessors();
+	private ThreadPoolExecutor es       = new ThreadPoolExecutor(coreSize * 4, coreSize * 5, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>(1000000),
+																 new ThreadPoolExecutor.CallerRunsPolicy());
 	
 	/**
 	 * 初始化配置
 	 */
-	static void init() {
+	public void init() {
 		conf = HBaseConfiguration.create();
 		try {
 			connection = ConnectionFactory.createConnection(conf);
-			table      = connection.getTable(TABLE_NAME);
-		} catch (IOException e) {
+			/*Admin admin = connection.getAdmin();
+			//creating table descriptor
+			HTableDescriptor t = new HTableDescriptor(TableName.valueOf(tableName));
+			//creating column family descriptor
+			HColumnDescriptor family = new HColumnDescriptor(toBytes("info"));
+			t.addFamily(family);
+			admin.createTable(t);*/
+			
+			table = connection.getTable(TABLE_NAME);
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -61,8 +88,8 @@ public class HBaseDemo {
 		System.out.println("scanByRange");
 		try {
 			Scan s = new Scan();
-			s.setStartRow(Bytes.toBytes("row"));
-			s.setStopRow(Bytes.toBytes("row9"));
+			s.setStartRow(toBytes("row"));
+			s.setStopRow(toBytes("row9"));
 			ResultScanner rs = table.getScanner(s);
 			for (Result r : rs) {
 				List<Cell> cells = r.listCells();
@@ -77,20 +104,20 @@ public class HBaseDemo {
 	 * 插入一行记录
 	 */
 	public void put(String row, String family, String qualifier, String value) {
-		System.out.println("put " + row);
+		log.info("put " + row);
 		try {
-			Put put = new Put(Bytes.toBytes(row));
-			put.addColumn(Bytes.toBytes(family), Bytes.toBytes(qualifier), Bytes.toBytes(value));
+			Put put = new Put(toBytes(row));
+			put.addColumn(toBytes(family), toBytes(qualifier), toBytes(value));
 			table.put(put);
 		} catch (IOException e) {
-			e.printStackTrace();
+			log.error(e.getMessage(), e);
 		}
 	}
 	
 	public void get(String row) {
 		System.out.println("get");
-		Get get = new Get(Bytes.toBytes(row));
-		get.addFamily(Bytes.toBytes("col1"));
+		Get get = new Get(toBytes(row));
+		get.addFamily(toBytes("col1"));
 		try {
 			Result     result = table.get(get);
 			List<Cell> cells  = result.listCells();
@@ -102,8 +129,8 @@ public class HBaseDemo {
 	
 	public void getFamily(String row) {
 		System.out.println("getFamily");
-		Get get = new Get(Bytes.toBytes(row));
-		get.addFamily(Bytes.toBytes("col1"));
+		Get get = new Get(toBytes(row));
+		get.addFamily(toBytes("col1"));
 		try {
 			Result     result = table.get(get);
 			List<Cell> cells  = result.listCells();
@@ -115,7 +142,7 @@ public class HBaseDemo {
 	
 	public void delete(String row) {
 		System.out.println("delete");
-		Delete delete = new Delete(Bytes.toBytes(row));
+		Delete delete = new Delete(toBytes(row));
 		try {
 			table.delete(delete);
 		} catch (IOException e) {
@@ -143,17 +170,24 @@ public class HBaseDemo {
 		}*/
 	}
 	
+	public void writeMassiveData(HBaseDemo hBaseDemo) {
+		IntStream.range(0, 100000000).forEach(i -> {
+			es.submit(() -> hBaseDemo.put("row" + i, "info", "name", "tangwanting" + i));
+		});
+		es.shutdown();
+	}
+	
 	public static void main(String[] args) {
-		init();
 		HBaseDemo hBaseDemo = new HBaseDemo();
+		hBaseDemo.init();
 		/*hBaseDemo.addColumnFamily("col2");*/
 /*		for (int i = 0; i < 1000000000; i++) {
 		
 		}*/
-		IntStream.range(0, 100000000).parallel().forEach(i -> {
-			hBaseDemo.put("row" + i, "info", "name", "tangwanting" + i);
-		});
-		System.out.println("数据写入结束");
+		log.info("starting task!");
+		long start = System.currentTimeMillis();
+		hBaseDemo.writeMassiveData(hBaseDemo);
+		log.info("数据写入结束, 耗时 " + (System.currentTimeMillis() - start) / 1000);
 		/*hBaseDemo.get("row");
 		hBaseDemo.getFamily("row");
 		hBaseDemo.scan();
