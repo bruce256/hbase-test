@@ -4,7 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
@@ -43,17 +46,29 @@ public class HBaseDemo {
 	public void init() {
 		conf = HBaseConfiguration.create();
 		try {
+			conf.set("hbase.zookeeper.quorum", "127.0.0.1");
+			conf.set("hbase.zookeeper.property.clientPort", String.valueOf(2181));
+			
 			connection = ConnectionFactory.createConnection(conf);
-			/*Admin admin = connection.getAdmin();
+			
+			
+			table = connection.getTable(TABLE_NAME);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void createTable() {
+		Admin admin = null;
+		try {
+			admin = connection.getAdmin();
 			//creating table descriptor
 			HTableDescriptor t = new HTableDescriptor(TableName.valueOf(tableName));
 			//creating column family descriptor
 			HColumnDescriptor family = new HColumnDescriptor(toBytes("info"));
 			t.addFamily(family);
-			admin.createTable(t);*/
-			
-			table = connection.getTable(TABLE_NAME);
-		} catch (Exception e) {
+			admin.createTable(t);
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -88,8 +103,8 @@ public class HBaseDemo {
 		System.out.println("scanByRange");
 		try {
 			Scan s = new Scan();
-			s.setStartRow(toBytes("row"));
-			s.setStopRow(toBytes("row9"));
+			s.setStartRow(toBytes("row999990"));
+			s.setStopRow(toBytes("row999999"));
 			ResultScanner rs = table.getScanner(s);
 			for (Result r : rs) {
 				List<Cell> cells = r.listCells();
@@ -154,6 +169,8 @@ public class HBaseDemo {
 		System.out.println(new String(cell.getRowArray()) + '\t'
 								   + new String(cell.getFamilyArray()) + '\t'
 								   + new String(cell.getQualifierArray()) + '\t'
+								   + cell.getTimestamp() + '\t'
+								   + cell.getType() + '\t'
 								   + new String(cell.getValueArray()));
 	}
 	
@@ -180,14 +197,16 @@ public class HBaseDemo {
 	public static void main(String[] args) {
 		HBaseDemo hBaseDemo = new HBaseDemo();
 		hBaseDemo.init();
+		/*hBaseDemo.createTable();*/
+		hBaseDemo.scanByRange();
 		/*hBaseDemo.addColumnFamily("col2");*/
 /*		for (int i = 0; i < 1000000000; i++) {
 		
 		}*/
-		log.info("starting task!");
+	/*	log.info("starting task!");
 		long start = System.currentTimeMillis();
 		hBaseDemo.writeMassiveData(hBaseDemo);
-		log.info("数据写入结束, 耗时 " + (System.currentTimeMillis() - start) / 1000);
+		log.info("数据写入结束, 耗时 " + (System.currentTimeMillis() - start) / 1000);*/
 		/*hBaseDemo.get("row");
 		hBaseDemo.getFamily("row");
 		hBaseDemo.scan();
