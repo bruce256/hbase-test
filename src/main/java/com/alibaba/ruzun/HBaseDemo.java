@@ -192,21 +192,22 @@ public class HBaseDemo {
 			es.submit(() -> hBaseDemo.put("row" + i, "info", "name", "tangwanting" + i));
 		});
 		es.shutdown();
+		try {
+			es.awaitTermination(1, TimeUnit.HOURS);
+		} catch (InterruptedException e) {
+			log.error(e.getMessage(), e);
+		}
 	}
 	
 	public static void main(String[] args) {
 		HBaseDemo hBaseDemo = new HBaseDemo();
 		hBaseDemo.init();
-		/*hBaseDemo.createTable();*/
-		hBaseDemo.scanByRange();
-		/*hBaseDemo.addColumnFamily("col2");*/
-/*		for (int i = 0; i < 1000000000; i++) {
-		
-		}*/
-	/*	log.info("starting task!");
+		hBaseDemo.createTable();
+		/*hBaseDemo.scanByRange();*/
+		log.info("starting task!");
 		long start = System.currentTimeMillis();
 		hBaseDemo.writeMassiveData(hBaseDemo);
-		log.info("数据写入结束, 耗时 " + (System.currentTimeMillis() - start) / 1000);*/
+		log.info("数据写入结束, 耗时 " + (System.currentTimeMillis() - start) / 1000);
 		/*hBaseDemo.get("row");
 		hBaseDemo.getFamily("row");
 		hBaseDemo.scan();
